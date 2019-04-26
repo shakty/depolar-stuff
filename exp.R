@@ -1,4 +1,10 @@
-require(init.R)
+if(.Platform$OS.type == "unix") {
+  THISDIR <- '~/Dropbox/msr-ineq/R/'
+} else {
+  THISDIR <- 'C:/Users/stbaliet/Dropbox/msr-ineq/R/'
+}
+setwd(THISDIR)
+source('init.R')
 
 
 ## essays <- data[c("treatment", "demrep", "govred", "govred2", "essay")]
@@ -53,6 +59,13 @@ require(init.R)
 ## For analysis related to the main questions.
 mydata <- data[data$weird == 0,]
 #############################################
+
+## Stance
+
+ggplot(mydata, aes(stance)) + geom_histogram(aes(fill=party), position="dodge")
+
+
+ggplot(mydata, aes(stance2)) + geom_histogram(aes(fill=party), position="dodge") + facet_grid(~treatment)
 
 ## Polarization Analysis.
 
@@ -581,3 +594,56 @@ ggplot(mysm, aes(variable, value, fill=as.factor(group))) +
 
 ggsave('ineqsources.jpg')
 
+#####################################################3
+
+## Matches simulation.
+
+matches <- read.csv('matches.csv')
+matches$self <- ifelse(matches$PlayerId == matches$MatchId, 1, 0)
+matches$sameparty <- factor(ifelse(matches$Party == matches$MatchParty, 1, 0))
+matches$partypair  <- apply(matches, 1, function(row) {
+    a <- row["Party"]
+    b <- row["MatchParty"]
+    if ((a == "D" && b == "R") ||
+        (a == "R" && b == "D")) {
+        return("DR")
+    }
+    if ((a == "D" && b == "I") ||
+        (a == "I" && b == "D")) {
+        return("DI")
+    }
+    if ((a == "R" && b == "I") ||
+        (a == "I" && b == "R")) {
+        return("RI")
+    }
+    return(paste0(a,b))
+})
+
+summarySE(matches[matches$self == 0,], "Score", "sameparty")
+
+mysm <- summarySE(matches[matches$self == 0,], "Score", "partypair")
+
+ggplot(mysm, aes(partypair, Score, fill=partypair)) +
+    geom_bar(stat="identity", position="dodge") +
+    geom_errorbar(aes(ymin=Score-ci, ymax=Score+ci))
+
+
+ggplot(matches[matches$self == 1,], aes(reorder(PlayerId, Score), Score, color=Party)) +
+    geom_point(size=5) + ylab('Self Similarity') + xlab('') +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90, hjust = 1)
+          )
+
+ggplot(matches[matches$self == 0,], aes(reorder(PlayerId, Score),  Score, color=Party)) +
+    geom_point(size=5) + ylab('Self Similarity') + xlab('') +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90, hjust = 1)
+          )
+
+ggplot(matches[matches$self == 0,], aes(reorder(PlayerId, Score), Score)) +
+    geom_point(size=5, aes(color=MatchParty)) +
+    ylab('Self Similarity') + xlab('') +
+    facet_grid(MatchParty~Party) +
+    theme(legend.position = "none",
+          axis.text.x = element_text(angle = 90, hjust = 1)
+          )

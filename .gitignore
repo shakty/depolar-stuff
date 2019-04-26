@@ -32,6 +32,7 @@ log/*.log
 private
 
 DATA
+DATA2
 
 *.csv
 *.json
@@ -40,3 +41,4 @@ report.html
 imgs/
 essays_and_feedbacks/
 ROOMS_BEFORE/
+*.jpg

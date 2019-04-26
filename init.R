@@ -30,74 +30,87 @@ myThemeMod <- theme(axis.title.x = element_text(vjust=-1, size=24),
 )
 
 
-
-
-if(.Platform$OS.type == "unix") {
-  THISDIR <- '~/Dropbox/msr-ineq/R/'
-} else {
-  THISDIR <- 'C:/Users/stbaliet/Dropbox/msr-ineq/R/'
+loadSession <- function(DATA.DIR, curdata) {
+  ##
+  print(nrow(curdata))
+  ##
+  dirs <- list.dirs(path=DATA.DIR)
+  for (dir in dirs) {
+      if (dir != DATA.DIR) {
+          file  <- paste0(THISDIR, dir, '/player_data.csv')
+          ## print(file)
+          if (file.exists(file)) {
+              tmp <- read.csv(file, sep=",", header = TRUE,
+                                stringsAsFactors = FALSE)
+              #
+              if (nrow(tmp) == 0) {
+                  print(paste0('!!!! empty file ', dir))
+                  next
+              }
+              ##print('before***')
+              ##print(ncol(tmp))
+              ##print(ncol(curdata))
+              if (nrow(curdata) != 0) {
+                  ## Find names of missing columns
+                  missing <- setdiff(names(tmp), names(curdata))
+                  missing2 <- setdiff(names(curdata), names(tmp))
+                  origNames <- colnames(curdata)
+                  for (j in missing)  {
+                      curdata = cbind(curdata,c(0))
+                  }
+                  colnames(curdata) <- c(origNames, missing)
+                  ##
+                  origNames <- colnames(tmp)
+                  for (j in missing2)  {
+                      tmp = cbind(tmp, c(0))
+                  }
+                  colnames(tmp) <- c(origNames, missing2)
+                  ## Not working.
+                  ## curdata[missing,] <- NA
+                  ## tmp[missing2,] <- NA
+              }
+              ##print('after***')
+              ##print(ncol(tmp))
+              ##print(ncol(curdata))
+              if (nrow(curdata) == 0) {
+                  curdata <- tmp
+              } else {
+                  curdata <- rbind(curdata, tmp)
+              }
+              ## Test: write all single file in same dir.
+              ##file <- paste0(THISDIR, DATA.DIR, '/ALL/', dir, '.csv')
+              ##print(file)
+              ##write.csv(curdata, file, sep=",", row.names=FALSE)            
+          } else {
+              print(paste0("!!!! ", dir, " has no file"))
+          }
+      } 
+  }
+  return(curdata)
 }
-setwd(THISDIR)
 
 
+## file  <- paste0(THISDIR, 'DATA2/room000044/player_data2.csv')
+## mp <- read.csv(file, sep=",", header = TRUE, quote ='"', allowEscapes = T,
+##               stringsAsFactors = FALSE)
+
+## Fix stupid R import.
+## Player "lgw1mOsT" used " and were changed to '.
+
+DATA.DIRS  <- c('DATA', 'DATA2')
+
+fromjson <- data.frame()
 data <- data.frame()
-DATA.DIR  <- 'DATA'
-dirs <- list.dirs(path=DATA.DIR)
-for (dir in dirs) {
-    if (dir != 'DATA/' && dir != 'DATA') {
-        file  <- paste0(THISDIR, dir, '/player_data.csv')
-        ## print(file)
-        if (file.exists(file)) {
-            tmp <- read.csv(file, sep=",", header = TRUE,
-                              stringsAsFactors = FALSE)
-            if (nrow(tmp) == 0) {
-                print(paste0('!!!! empty file ', dir))
-                next
-            }
-            ##print('before***')
-            ##print(ncol(tmp))
-            ##print(ncol(data))
-            if (nrow(data) != 0) {
-                ## Find names of missing columns
-                missing <- setdiff(names(tmp), names(data))
-                missing2 <- setdiff(names(data), names(tmp))
-                origNames <- colnames(data)
-                for (j in missing)  {
-                    data = cbind(data,c(0))
-                }
-                colnames(data) <- c(origNames, missing)
-                ##
-                origNames <- colnames(tmp)
-                for (j in missing2)  {
-                    tmp = cbind(tmp, c(0))
-                }
-                colnames(tmp) <- c(origNames, missing2)
-                ## Not working.
-                ## data[missing,] <- NA
-                ## tmp[missing2,] <- NA
-            }
-            ##print('after***')
-            ##print(ncol(tmp))
-            ##print(ncol(data))
-            if (nrow(data) == 0) {
-                data <- tmp
-            } else {
-                data <- rbind(data, tmp)
-            }
-            ## Test: write all single file in same dir.
-            ##file <- paste0(THISDIR, DATA.DIR, '/ALL/', dir, '.csv')
-            ##print(file)
-            ##write.csv(data, file, sep=",", row.names=FALSE)            
-        } else {
-            print(paste0("!!!! ", dir, " has no file"))
-        }
-    } 
+for (d in DATA.DIRS) {
+  ## CSV
+  data <- loadSession(d, data)
+  ## JSON
+  tmp <- read.csv(paste0(THISDIR, d, '/from_json.csv'))
+  if (nrow(fromjson) == 0) fromjson <- tmp
+  else fromjson <- rbind(fromjson, tmp)
 }
-
-## Join Info From JSON.
-
-fromjson <- read.csv(paste0(THISDIR, 'from_json.csv'))
 data <- merge(data, fromjson, by="player")
+
 
 
 ## MID VALUE
@@ -115,11 +128,16 @@ data$republican <- ifelse(data$demrep > MID, 'Yes', 'No')
 data$liberal  <-  ifelse(data$libcons < MID, 'Yes', 'No')
 data$conservative  <- ifelse(data$libcons > MID, 'Yes', 'No')
 
+data$estatetax <- ifelse(data$estatetax == "Moderatly increased", "Moderately increased",
+                  ifelse(data$estatetax == "Moderatly decreased", "Moderately decreased", data$estatetax))
+data$estatetax2 <- ifelse(data$estatetax2 == "Moderatly increased", "Moderately increased",
+                  ifelse(data$estatetax2 == "Moderatly decreased", "Moderately decreased", data$estatetax2))
 ##
 
 if (!("session" %in% names(data))) {
     data$session  <- "pilot1"
     data$date <- "04-22-2019"
+    ## Up to room41.
 }
 
 ## Govred recode.
@@ -128,6 +146,7 @@ if (!("session" %in% names(data))) {
 data$govred <- ifelse(data$session == "pilot1", 8 - data$govred, data$govred)
 data$govred2 <- ifelse(data$session == "pilot1", 8 - data$govred2, data$govred2)
 
+data$govred <- as.integer(data$govred)
 
 ## Flag weird responses.
 
@@ -157,6 +176,7 @@ data$candidate.all <- ifelse(data$candidate == 'Other', data$othercandidate, dat
 data$candidate.all <- factor(data$candidate.all, 
                              levels=names(sort(table(data$candidate.all), 
                                                decreasing=TRUE)))
+
 ##
 
 fun <- function(v) {
@@ -175,7 +195,7 @@ fun <- function(v) {
         v == "Moderately increase") res <- 6
     if (v == "Significantly increased" ||
         v == "Significantly increase") res <- 7
-    if (res == -1) stop('WTF')
+    if (res == -1) stop(paste0('WTF ', v))
     return(res)
 }
 
@@ -196,6 +216,23 @@ data$publichousing2.num <- unlist(lapply(data$publichousing2, fun))
 
 data$foodstamps.num <- unlist(lapply(data$foodstamps, fun))
 data$foodstamps2.num <- unlist(lapply(data$foodstamps2, fun))
+
+## Update stance for pilot1.
+
+fun <- function(row, r = "") {
+  if (row["session"] != "pilot1") return(as.numeric(row[paste0("stance", r)]))
+  stance = -28 + as.numeric(row[paste0("govred", r)])
+  stance = stance + as.numeric(row[paste0("minimalwage", r, ".num")])
+  stance = stance + as.numeric(row[paste0("estatetax", r, ".num")] )
+  stance = stance + as.numeric(row[paste0("publichousing", r, ".num")]) 
+  stance = stance + as.numeric(row[paste0("billionaires", r, ".num")])
+  stance = stance + as.numeric(row[paste0("foodstamps", r, ".num")]) 
+  stance = stance + as.numeric(row[paste0("aidpoor", r, ".num")])
+  return(stance)
+}
+data$stance <- apply(data, 1, fun)
+data$stance2 <- apply(data, 1, fun, "2")
+
 
 
 data$foodstamps.diff <- data$foodstamps2.num - data$foodstamps.num
@@ -284,3 +321,6 @@ data$ineqprob <- factor(data$ineqprob,
                                  'A problem',
                                  'A serious problem',
                                  'A very serious problem'))
+
+
+data$party <- ifelse(data$democratic == "Yes", "D", ifelse(data$republican == "Yes", "R", "I"))

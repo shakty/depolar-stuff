@@ -7,8 +7,12 @@ const THISDIR = process.platform === 'linux' ?
       '/home/balistef/Dropbox/msr-ineq/R' :
       'C:\\Users\\stbaliet\\Dropbox\\msr-ineq\\R';
 
-const DATADIR = path.join(THISDIR, 'DATA');
+const SESSIONDIR = 'DATA2';
+const SESSIONNAME = 'pilot2-cons';
+const SESSIONDATE = '04-25-2019';
 
+
+const DATADIR = path.join(THISDIR, SESSIONDIR);
 
 let db = new NDDB({ update: { indexes: true }});
 db.hash('player');
@@ -38,7 +42,9 @@ db.essay.each((essay) => {
         essayTime: (essay.time / 1000),
         essayWords: essay.essay.split(" ").length,
         overallTime: overallTime / 1000,
-        consentTime: first.time / 1000
+        consentTime: first.time / 1000,
+        session: SESSIONNAME,
+        date: SESSIONDATE
     });
 });
 
